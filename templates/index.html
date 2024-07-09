@@ -1,36 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ChatShare</title>
-    <link rel="icon" href="/static/images/logo.ico" type="image/x-icon">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    <link href="https://fonts.googleapis.com/css?family=Exo:400,700" rel="stylesheet">
+    <title>Retirement Portfolio Optimizer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <style>
+        .scrolling-wrapper {
+            overflow-x: scroll;
+            overflow-y: hidden;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+        .scrolling-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+        .card {
+            display: inline-block;
+            flex: 0 0 auto;
+        }
+    </style>
 </head>
-
 <body>
-    <div class="area">
-        <div class="circles">
-            <ul>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-                <li></li>
-            </ul>
+    <div class="container-fluid mt-5">
+        <h1 class="text-center">Retirement Portfolio Optimizer</h1>
+        <form id="portfolio-form" class="bg-light p-4 rounded">
+            <div class="form-group mb-3">
+                <label for="age">Current Age</label>
+                <input type="number" value="30" class="form-control" id="age" name="age" required>
+            </div>
+            <div class="form-group mb-3">
+                <label for="risk_tolerance">Risk Tolerance (1 = Low, 5 = Medium, 10 = High)</label>
+                <input type="range" class="form-control-range" value="5" id="risk_tolerance" name="risk_tolerance" min="1" max="10" step="1" required>
+                <span id="risk_tolerance_value">5</span>
+            </div>
+            <div class="form-group mb-3">
+                <label for="salary">Annual Salary ($)</label>
+                <input type="number" value="50000" class="form-control" id="salary" name="salary" required>
+            </div>
+            <div class="form-group mb-3">
+                <label for="savings">Current Savings ($)</label>
+                <input type="number" value="10000" class="form-control" id="savings" name="savings" required>
+            </div>
+            <div class="form-group mb-3">
+                <label for="desired_amount">Desired Amount at Retirement ($)</label>
+                <input type="number" value="1000000" class="form-control" id="desired_amount" name="desired_amount" required>
+            </div>
+            <div class="form-group mb-3">
+                <label>Select Assets:</label>
+                <div id="assets-checkboxes">
+                    <!-- Asset checkboxes will be added here by JavaScript -->
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Optimize Portfolio</button>
+        </form>
+        <div id="loader" class="text-center mt-5" style="display: none;">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <div class="container my-5">
+            <div class="row">
+                <div id="results" class="col"></div>
+                <div class="col text-center">
+                    <canvas id="portfolio-chart" width="2" height="2"></canvas>
+                </div>
+            </div>      
         </div>
     </div>
-    <div class="context">
-        <h1>Coding Craft YT</h1>
-        <h3>Taking Your Flask Project Beyond Localhost!</h3>
-    </div>
-</body>
 
+    <script>
+        const assets = {
+            "Technology": {
+                "High Cap": ["INFY.NS", "TCS.NS", "HCLTECH.NS", "TECHM.NS", "WIPRO.NS"],
+                "Mid Cap": ["LTIM.NS", "KPITTECH.NS", "MPHASIS.NS", "LTI.NS", "COFORGE.NS"],
+                "Low Cap": ["TVSELECT.NS", "VAKRANGEE.NS", "MASTEK.NS", "GTLINFRA.NS", "FSL.NS"]
+            },
+            "Healthcare": {
+                "High Cap": ["SUNPHARMA.NS", "DRREDDY.NS", "DIVISLAB.NS", "LUPIN.NS", "METROPOLIS.NS"],
+                "Mid Cap": ["AUROPHARMA.NS", "ALKEM.NS", "BIOCON.NS", "TORNTPHARM.NS", "IPCALAB.NS"],
+                "Low Cap": ["BLISSGVS.NS", "MARKSANS.NS", "KMCSHIL.NS", "SMSLIFE.NS", "INDOCO.NS"]
+            },
+            "Finance": {
+                "High Cap": ["HDFCBANK.NS", "ICICIBANK.NS", "KOTAKBANK.NS", "SBIN.NS", "AXISBANK.NS"],
+                "Mid Cap": ["BAJFINANCE.NS", "BANDHANBNK.NS", "CHOLAFIN.NS", "L&TFH.NS", "M&MFIN.NS"],
+                "Low Cap": ["AUBANK.NS", "ABFRL.NS", "BATAINDIA.NS", "BHARTIARTL.NS", "CIPLA.NS"]
+            },
+            "Consumer Goods": {
+                "High Cap": ["HINDUNILVR.NS", "NESTLEIND.NS", "DABUR.NS", "GODREJCP.NS", "MARICO.NS"],
+                "Mid Cap": ["JUBLFOOD.NS", "UBL.NS", "PIDILITIND.NS", "BRITANNIA.NS", "COLPAL.NS"],
+                "Low Cap": ["VENKEYS.NS", "VADILALIND.NS", "ZENSARTECH.NS", "VSTIND.NS", "EMAMILTD.NS"]
+            },
+            "Energy": {
+                "High Cap": ["RELIANCE.NS", "ONGC.NS", "IOC.NS", "BPCL.NS", "GAIL.NS"],
+                "Mid Cap": ["IGL.NS", "GUJGASLTD.NS", "MGL.NS", "PETRONET.NS", "COALINDIA.NS"],
+                "Low Cap": ["MRPL.NS", "IOB.NS", "IWEL.NS", "NFL.NS", "HINDPETRO.NS"]
+            },
+            "Industrial": {
+                "High Cap": ["LT.NS", "BAJAJ-AUTO.NS", "TITAN.NS", "TATASTEEL.NS", "JSWSTEEL.NS"],
+                "Mid Cap": ["SAIL.NS", "VEDL.NS", "ADANIGREEN.NS", "ADANIPORTS.NS", "JINDALSTEL.NS"],
+                "Low Cap": ["AIAENG.NS", "ATUL.NS", "KSB.NS", "APLAPOLLO.NS", "CROMPTON.NS"]
+            }
+        };
+
+        // Function to generate asset checkboxes
+        function generateAssetCheckboxes() {
+            const assetsContainer = document.getElementById('assets-checkboxes');
+            const scrollingWrapper = document.createElement('div');
+            scrollingWrapper.classList.add('scrolling-wrapper');
+            assetsContainer.appendChild(scrollingWrapper);
+
+            for (const [category, subcategories] of Object.entries(assets)) {
+                const cardDiv = document.createElement('div');
+                cardDiv.classList.add('card', 'my-2','px-md-4','me-2','px-2');
+                scrollingWrapper.appendChild(cardDiv);
+
+                const cardBodyDiv = document.createElement('div');
+                cardBodyDiv.classList.add('card-body');
+                cardDiv.appendChild(cardBodyDiv);
+
+                const categoryTitle = document.createElement('h5');
+                categoryTitle.classList.add('card-title');
+                categoryTitle.textContent = category;
+                cardBodyDiv.appendChild(categoryTitle);
+
+                for (const [cap, assetList] of Object.entries(subcategories)) {
+                    const capTitle = document.createElement('h6');
+                    capTitle.textContent = cap;
+                    cardBodyDiv.appendChild(capTitle);
+
+                    assetList.forEach(asset => {
+                        const assetDiv = document.createElement('div');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = asset;
+                        checkbox.name = 'assets';
+                        checkbox.value = asset;
+                        const label = document.createElement('label');
+                        label.htmlFor = asset;
+                        label.textContent = asset;
+
+                        assetDiv.appendChild(checkbox);
+                        assetDiv.appendChild(label);
+                        cardBodyDiv.appendChild(assetDiv);
+                    });
+
+                    if (cap !== 'Low Cap') {
+                        const hr = document.createElement('hr');
+                        cardBodyDiv.appendChild(hr);
+                    }
+                }
+            }
+        }
+
+        // Call the function to generate checkboxes
+        generateAssetCheckboxes();
+
+        // Update the risk tolerance value label
+        document.getElementById('risk_tolerance').addEventListener('input', function () {
+            document.getElementById('risk_tolerance_value').textContent = this.value;
+        });
+
+        let portfolioChart; // Declare a variable to hold the chart instance
+
+        // Handle form submission
+        document.getElementById('portfolio-form').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            // Show loader
+            document.getElementById('loader').style.display = 'block';
+
+            const formData = new FormData(this);
+            const formProps = Object.fromEntries(formData);
+            formProps.assets = Array.from(formData.getAll('assets'));
+
+            fetch('/optimize_portfolio', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formProps)
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loader
+                document.getElementById('loader').style.display = 'none';
+
+                const resultsDiv = document.getElementById('results');
+                resultsDiv.innerHTML = `
+                    <h3>Optimized Portfolio Results</h3>
+                    <p><strong>Expected Annual Return:</strong> ${(data.expected_annual_return * 100).toFixed(2)}%</p>
+                    <p><strong>Annual Volatility:</strong> ${(data.annual_volatility * 100).toFixed(2)}%</p>
+                    <p><strong>Sharpe Ratio:</strong> ${data.sharpe_ratio.toFixed(2)}</p>
+                    <h4>Optimized Portfolio Weights:</h4>
+                    <ul>${Object.entries(data.optimized_weights).map(([asset, weight]) => `<li>${asset}: ${(weight * 100).toFixed(2)}%</li>`).join('')}</ul>
+                `;
+
+                // Destroy the previous chart instance if it exists
+                if (portfolioChart) {
+                    portfolioChart.destroy();
+                }
+
+                // Create a new chart instance
+                const ctx = document.getElementById('portfolio-chart').getContext('2d');
+                portfolioChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(data.optimized_weights),
+                        datasets: [{
+                            data: Object.values(data.optimized_weights).map(weight => weight * 100),
+                            backgroundColor: [
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40',
+                                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            },
+                            title: {
+                                display: true,
+                                text: 'Portfolio Allocation'
+                            },
+                            datalabels: {
+                                formatter: (value, ctx) => {
+                                    let datasets = ctx.chart.data.datasets;
+                                    if (datasets.indexOf(ctx.dataset) === datasets.length - 1) {
+                                        let sum = datasets[0].data.reduce((a, b) => a + b, 0);
+                                        let percentage = (value / sum * 100).toFixed(2) + '%';
+                                        return percentage;
+                                    } else {
+                                        return percentage;
+                                    }
+                                },
+                                color: '#fff',
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: 5
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+</body>
 </html>
